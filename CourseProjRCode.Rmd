@@ -1,0 +1,131 @@
+---
+title: "Practical Machine Learning Course Project"
+author: "Spencer Chan"
+date: ""
+output: html_document
+---
+
+# Project Summary
+
+Human Activity Recognition - HAR - has emerged as a key research area in the last years and is gaining increasing attention by the pervasive computing research community (see picture below, that illustrates the increasing number of publications in HAR with wearable accelerometers), especially for the development of context-aware systems. There are many potential applications for HAR, like: elderly monitoring, life log systems for monitoring energy expenditure and for supporting weight-loss programs, and digital assistants for weight lifting exercises.
+
+The data being examined comes from accelerometers placed on the participants bodies while performing various exercises. We use the given data to create a prediction model and test the model on a given test set.
+
+```{r, echo=FALSE, warning=FALSE}
+# Load Packages
+
+library(caret)
+library(rattle)
+library(rpart)
+library(randomForest)
+library(ipred)
+set.seed(12345)
+
+```
+
+We set the seed so that any methods involving random permutations may be reproduced.
+
+
+## Import Data
+```{r}
+
+# Load the Training and Test data sets
+
+traindata <- read.csv('pml-training.csv')
+testdata <- read.csv('pml-testing.csv')
+
+```
+
+## Preprocess the Data
+
+```{r}
+
+# Clean the Data from Columns of NAs and Blanks
+headerindex <- c(4, 7:11, 37:49, 60:68, 84:86)
+
+traindata2 <- traindata[,headerindex]
+traindata2$class <- traindata$classe
+
+testdata2 <- testdata[,headerindex]
+
+```
+
+Here we select the columns of data which, by a quick visual evaluation, are valid and relevant measurements. Features such as dates, numer labels and word descriptions were removed.
+
+## Divide the Data for training
+
+```{r}
+
+# Split the Training Data into Temporary Training and Test Sets
+
+# Partion the Data into two sections, 75% for Training, 25% for additional Testing
+train <- createDataPartition(traindata2$class, p = 0.75, list = FALSE)
+training <- traindata2[train,]
+testing <- traindata2[-train,]
+
+```
+
+The purpose of creating a separate testing set is to use cross-validation to test the accuracy of our models before using them on the final test data set.
+
+## Model 1: Trees
+
+```{r}
+
+# Train the model on the Split Training Data
+
+modtree <- train(class ~. , method = "rpart", data = training)
+
+# Perform a prediction on the Split Test Data
+
+predicttree <- predict(modtree, testing)
+
+# Evaluate using the Confusion Matrix
+
+print(confusionMatrix(predicttree, testing$class))
+
+```
+
+As we can see, the 55% accuracy of the base Tree model is not a very good prediction. The error rate of almsot 46% is shows that this is a poor model.
+
+
+## Model 2: Random Forest
+
+```{r}
+
+# Train the model on the Split Training Data
+
+model <- randomForest(class ~. , data = training)
+
+# Use Model to predict on the Allocated Test Set
+
+predictions <- predict(model, testing, type = "class")
+
+# Create Confusion Matrix to Check Accuracy of Model
+
+print(confusionMatrix(predictions, testing$class))
+
+```
+
+As we can see, the 99.65% accuracy of the Random Forest Model shows that this is an excellent prediction model. With an error rate of under 1%, we can confidently use this model for our true testing data.
+
+## Model to be Used:
+
+```{r}
+
+# The Random Forest Model
+head(getTree(model, 1, labelVar=TRUE),20)
+
+```
+
+## Final Prediction Test
+
+```{r}
+
+# Use Random Forest Model on the Real Test Data
+
+finalpredictions <- predict(model, testdata2, type = "class")
+print(finalpredictions)
+
+```
+
+The final predictions are shown above for the test data set, to be submitted for checking.
